@@ -243,3 +243,9 @@ thread_pool.bulk.queue_size:1000 # 写入线程队列大小
 index.refresh_interval:300s #index 刷新间隔
 
 
+适当增大写入buffer和bulk队列长度，提高写入性能和稳定性
+indices.memory.index_buffer_size: 15%
+thread_pool.bulk.queue_size: 1024
+
+计算disk使用量时，不考虑正在搬迁的shard
+cluster.routing.allocation.disk.include_relocations: false
