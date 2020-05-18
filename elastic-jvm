@@ -1,0 +1,38 @@
+加cms gc 的 线程
+直接从根源入手，你remark 慢，我就让你跑快点。
+因为我们是32 核的cpu ，cpu 利用率用bigdesk观察还是很低的，5%左右。这么低，那就加点线程呗。
+-XX:ParallelGCThreads= N
+-XX:ParallelCMSThreads= M
+调整这2个参数都可以，它们的关系：ParallelCMSThreads = (ParallelGCThreads + 3)/4)
+调整后情况缓解了一些，remark还是有3,4秒的情况。
+
+
+在使用CMS垃圾回收器时，jmap -heap 查看jvm实际为ES进程分配的新生代的大小。
+因为，影响新生代大小的参数有三个：第一个是：-XX:NewSize和-XX:MaxNewSize、
+第二个是：-Xmn、第三个是：-XX:NewRatio=2。根据参数XX:NewRatio=2 ，
+ES 进程 jvm新生代堆大小占配置的总的堆的1/3，但其实并没有，
+就是因为参数：-XX:NewSize和-XX:MaxNewSize 优先级比XX:NewRatio=2高，覆盖了这个参数配置的值。
+
+
+
+-XX:CMSInitiatingOccupancyFraction 设置成75%。主要是因为CMS是并发收集，垃圾回收线程和用户线程同时运行，
+用户线程运行时可能继续无用的垃圾对象，如果到90%再去回收就太晚了。老年代使用到75%就回收可减少OOM异常发生的概率。
+
+-XX:MaxTenuringThreshold 设置成6。这个值默认为15，即Survivor区对象经历15次Young GC后才进入老年代，
+设置成6就只需6次YGC就晋升到老年代了。默认情况下ES新生代采用 -XX:+UseParNewGC，老年代采用CMS垃圾回收器
+
+-Xss128k：设置每个线程的堆栈大小。JDK5.0以后每个线程堆栈大小为1M，以前每个线程堆栈大小为256K。
+更具应用的线程所需内存大小进行调整。在相同物理内存下，减小这个值能生成更多的线程。
+但是操作系统对一个进程内的线程数还是有限制的，不能无限生成，经验值在3000~5000左右。
+
+-XX:ParallelGCThreads=20：配置并行收集器的线程数，即：同时多少个线程一起进行垃圾回收。此值最好配置与处理器数目相等
+
+-XX:MaxGCPauseMillis=100:设置每次年轻代垃圾回收的最长时间，如果无法满足此时间，JVM会自动调整年轻代大小，以满足此值。
+
+-XX:+UseAdaptiveSizePolicy：设置此选项后，并行收集器会自动选择年轻代区大小和相应的Survivor区比例，
+以达到目标系统规定的最低相应时间或者收集频率等，此值建议使用并行收集器时，一直打开。
+
+jmap -heap 30166
+
+
+
