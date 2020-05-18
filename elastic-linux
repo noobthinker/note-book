@@ -26,4 +26,40 @@ swap空间是一块磁盘空间，操作系统使用这块空间保存从内存�
 
 sudo sh -c 'echo "0">/proc/sys/vm/swappiness'
 
+关闭交换分区，防止内存置换降低性能。 将/etc/fstab 文件中包含swap的行注释掉
+sed -i '/swap/s/^/#/' /etc/fstab
+swapoff -a
+
+磁盘挂载选项
+noatime：禁止记录访问时间戳，提高文件系统读写性能
+data=writeback： 不记录data journal，提高文件系统写入性能
+barrier=0：barrier保证journal先于data刷到磁盘，上面关闭了journal，这里的barrier也就没必要开启了
+nobh：关闭buffer_head，防止内核打断大块数据的IO操作
+mount -o noatime,data=writeback,barrier=0,nobh /dev/sda /es_data
+
+
+# 修改系统资源限制
+# 单用户可以打开的最大文件数量，可以设置为官方推荐的65536或更大些
+echo "* - nofile 655360" >>/etc/security/limits.conf
+# 单用户内存地址空间
+echo "* - as unlimited" >>/etc/security/limits.conf
+# 单用户线程数
+echo "* - nproc 2056474" >>/etc/security/limits.conf
+# 单用户文件大小
+echo "* - fsize unlimited" >>/etc/security/limits.conf
+# 单用户锁定内存
+echo "* - memlock unlimited" >>/etc/security/limits.conf
+
+# 单进程可以使用的最大map内存区域数量
+echo "vm.max_map_count = 655300" >>/etc/sysctl.conf
+
+# TCP全连接队列参数设置， 这样设置的目的是防止节点数较多（比如超过100）的ES集群中，节点异常重启时全连接队列在启动瞬间打满，造成节点hang住，整个集群响应迟滞的情况
+echo "net.ipv4.tcp_abort_on_overflow = 1" >>/etc/sysctl.conf
+echo "net.core.somaxconn = 2048" >>/etc/sysctl.conf
+
+# 降低tcp alive time，防止无效链接占用链接数
+echo 300 >/proc/sys/net/ipv4/tcp_keepalive_time
+
+
+
 
