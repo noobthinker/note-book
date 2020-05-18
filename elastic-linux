@@ -1,0 +1,29 @@
+Linux中，每个进程默认打开的最大文件句柄数是1000,对于服务器进程来说，显然太小，通过修改/etc/security/limits.conf来增大打开最大句柄数
+
+/etc/security/limits.conf
+
+* - nofile 65535
+
+max_map_count定义了进程能拥有的最多内存区域
+sysctl -w vm.max_map_count=262144
+
+修改/etc/security/limits.conf, 在limits.conf中添加如下内容
+
+* soft memlock unlimited
+* hard memlock unlimited
+
+memlock 最大锁定内存地址空间， 要使limits.conf文件配置生效，必须要确保pam_limits.so文件被加入到启动文件中。
+
+确保/etc/pam.d/login文件中有如下内容
+
+session required /lib/security/pam_limits.so
+
+
+swap调优
+swap空间是一块磁盘空间，操作系统使用这块空间保存从内存中换出的操作系统不常用page数据，这样可以分配出更多的内存做page cache。这样通常会提升系统的吞吐量和IO性能，但同样会产生很多问题。页面频繁换入换出会产生IO读写、操作系统中断，这些都很影响系统的性能。这个值越大操作系统就会更加积极的使用swap空间。
+
+调节swappniess方法如下
+
+sudo sh -c 'echo "0">/proc/sys/vm/swappiness'
+
+
