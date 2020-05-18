@@ -49,6 +49,10 @@
 # <http://github.com/karmi/elasticsearch-paramedic>, 
 # <http://github.com/lukas-vlcek/bigdesk> and 
 # <http://mobz.github.com/elasticsearch-head> to inspect the cluster state. 
+#可以先通过 GET _nodes/{node}/hot_threads 查看线程栈，查看是哪个线程占用 cpu 高，如果是 elasticsearch[{node}][search][T#10] 则是查询导致的，如果是 elasticsearch[{node}][bulk][T#1] 则是数据写入导致的。
+#在实际调优中，cpu 使用率很高，如果不是 SSD，建议把 index.merge.scheduler.max_thread_count: 1 
+#索引 merge 最大线程数设置为 1 个，该参数可以有效调节写入的性能。因为在存储介质上并发写，由于寻址的原因，写入性能不会提升，只会降低
+
  
 # A node can have generic attributes associated with it, which can later be used 
 # for customized shard allocation filtering, or allocation awareness. An attribute 
@@ -223,3 +227,19 @@
 #index.translog.flush_threshold_ops:当发生多少次操作时进行一次flush.默认是 unlimited #index.translog.flush_threshold_size:当translog的大小达到此值时会进行一次flush操作.默认是512mb 
 #index.translog.flush_threshold_period:在指定的时间间隔内如果没有进行flush操作,会进行一次强制flush操作.默认是30m #index.translog.interval:多少时间间隔内会检查一次translog,来进行一次flush操作.es会随机的在这个值到这个值的2倍大小之间进行一次操作,默认是5s 
 #index.gateway.local.sync:多少时间进行一次的写磁盘操作,默认是5s
+
+
+exp:
+index.merge.scheduler.max_thread_count:1 # 索引 merge 最大线程数
+indices.memory.index_buffer_size:30%	 # 内存
+index.translog.durability:async # 这个可以异步写硬盘，增大写的速度
+index.translog.sync_interval:120s #translog 间隔时间
+discovery.zen.ping_timeout:120s # 心跳超时时间
+discovery.zen.fd.ping_interval:120s	 # 节点检测时间
+discovery.zen.fd.ping_timeout:120s	 #ping 超时时间
+discovery.zen.fd.ping_retries:6	 # 心跳重试次数
+thread_pool.bulk.size:20 # 写入线程个数 由于我们查询线程都是在代码里设定好的，我这里只调节了写入的线程数
+thread_pool.bulk.queue_size:1000 # 写入线程队列大小
+index.refresh_interval:300s #index 刷新间隔
+
+
