@@ -240,6 +240,7 @@ discovery.zen.fd.ping_timeout:120s	 #ping 超时时间
 discovery.zen.fd.ping_retries:6	 # 心跳重试次数
 thread_pool.bulk.size:20 # 写入线程个数 由于我们查询线程都是在代码里设定好的，我这里只调节了写入的线程数
 thread_pool.bulk.queue_size:1000 # 写入线程队列大小
+
 index.refresh_interval:300s #index 刷新间隔
 
 
@@ -249,3 +250,10 @@ thread_pool.bulk.queue_size: 1024
 
 计算disk使用量时，不考虑正在搬迁的shard
 cluster.routing.allocation.disk.include_relocations: false
+
+已经索引好的文档会先存放在内存缓存中，等待被写到到段(segment)中。缓存满的时候会触发段刷盘(吃i/o和cpu的操作)。
+默认最小缓存大小为48m，不太够，最大为堆内存的10%。对于大量写入的场景也显得有点小。
+
+indices.fielddata.cache.size: 15%
+filedata cache的使用场景是一些聚合操作(包括排序),构建filedata cache是个相对昂贵的操作。所以尽量能让他保留在内存中
+
