@@ -1,0 +1,31 @@
+vi /etc/redis.conf
+
+bind  0.0.0.0 
+
+protected-mode no
+
+cluster-enabled yes
+
+cluster-config-file nodes-6379.conf
+
+cluster-node-timeout 15000
+
+
+appendonly yes
+
+masterauth password
+requirePass password
+
+# 6 nodes
+redis-cli --cluster create ip:port ip:port --cluster-replicas 1
+
+# list all cluster nodes
+redis-cli -h localhost -p 6379 cluster nodes
+
+# [ERR] Node 192.168.2.11:6379 NOAUTH Authentication required 
+
+#redis-cli --cluster create ip:port ip:port -a password --cluster-replicas 1
+
+# masterauth  password
+
+
