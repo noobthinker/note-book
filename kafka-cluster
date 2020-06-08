@@ -1,0 +1,187 @@
+# zookeeper
+
+mkdir /zookeeper
+mkdir /zookeeper/data
+mkdir /zookeeper/logs
+
+vi zoo.cfg
+
+tickTime=2000
+initLimit=10
+syncLimit=5
+dataDir=/zookeeper/data
+dataLogDir=/zookeeper/logs
+clientPort=2181
+server.1=IP1:2888:3888
+server.2=IP2:2888:3888
+server.3=IP3:2888:3888
+
+IP1:
+echo "1" > /zookeeper/data/myid
+IP2:
+echo "2" > /zookeeper/data/myid
+IP3:
+echo "3" > /zookeeper/data/myid
+
+# auto start
+
+vim /etc/systemd/system/zookeeper.service
+
+[Unit]
+Description=Apache Zookeeper server
+Documentation=http://zookeeper.apache.org
+Requires=network.target remote-fs.target
+After=network.target remote-fs.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/kafka/bin/zookeeper-server-start.sh /usr/local/kafka/config/zookeeper.properties
+ExecStop=/usr/local/kafka/bin/zookeeper-server-stop.sh
+Restart=on-abnormal
+
+[Install]
+WantedBy=multi-user.target
+
+
+systemctl daemon-reload
+
+
+
+# kafka
+
+mkdir /kafka
+mkdir /kafka/logs
+
+vi server.properties
+
+log.dirs=/kafka/logs
+zookeeper.connect=IP1:2181,IP2:2181,IP3:2181
+
+# kafka node1
+broker.id=0
+
+#listeners=PLAINTEXT://:9092
+listeners=PLAINTEXT://IP1:9092
+
+
+# kafka node2
+
+broker.id=1
+
+#listeners=PLAINTEXT://:9092
+listeners=PLAINTEXT://IP2:9092
+
+# kafka node3
+
+broker.id=2
+
+#listeners=PLAINTEXT://:9092
+listeners=PLAINTEXT://IP3:9092
+
+# auto start
+
+vim /etc/systemd/system/kafka.service
+
+[Unit]
+Description=Apache Kafka Server
+Documentation=http://kafka.apache.org/documentation.html
+Requires=zookeeper.service
+
+[Service]
+Type=simple
+Environment="JAVA_HOME=/usr/lib/jvm/jre-11-openjdk"
+ExecStart=/usr/local/kafka/bin/kafka-server-start.sh /usr/local/kafka/config/server.properties
+ExecStop=/usr/local/kafka/bin/kafka-server-stop.sh
+
+[Install]
+WantedBy=multi-user.target
+
+
+# kafka jmx
+
+vi bin/kafka-server-start.sh
+
+if [ "x$KAFKA_HEAP_OPTS" = "x" ]; then
+    export KAFKA_HEAP_OPTS="-Xmx1G -Xms1G"
+    export JMX_PORT="9110" ## add this
+fi
+
+
+# optimize
+# broker处理消息的最大线程数
+num.network.threads=9
+# broker处理磁盘IO的线程数
+num.io.threads=16
+# range -2147483648~2147483647
+socket.request.max.bytes=2147483600
+# 每当producer写入10000条消息时，刷数据到磁盘
+log.flush.interval.messages=10000
+# 每间隔1秒钟时间，刷数据到磁盘
+log.flush.interval.ms=1000
+# 日志保留时长
+log.retention.hours=72
+# 段文件配置，段文件配置1GB，有利于快速回收磁盘空间，
+#重启kafka加载也会加快（kafka启动时是单线程扫描目录(log.dir)下所有数据文件）。
+#如果文件过小，则文件数量比较多
+log.segment.bytes=1073741824
+# replica复制配置
+num.replica.fetchers=3
+replica.fetch.min.bytes=1
+replica.fetch.max.bytes=5242880
+## 拉取线程数(num.replica.fetchers):fetcher配置多可以提高follower的I/O并发度，
+##单位时间内leader持有更多请求，相应负载会增大，需要根据机器硬件资源做权衡，建议适当调大；
+## 最小字节数(replica.fetch.min.bytes):一般无需更改，默认值即可；
+## 最大字节数(replica.fetch.max.bytes)：默认为1MB，这个值太小，推荐5M，根据业务情况调整
+# 分区数量配置
+num.partitions=5
+
+## optimize idea
+Producer:
+
+batch.size
+linger.ms
+compression.type
+acks
+retries
+replication.factor
+enable.idempotence
+max.in.flight.requests.per.connection
+buffer.memory
+Consumer:
+
+fetch.min.bytes
+enable.auto.commit
+isolation.level
+session.timeout.ms
+Streams:
+
+StreamsConfig.TOPOLOGY_OPTIMIZATION
+StreamsConfig.REPLICATION_FACTOR_CONFIG
+StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG
+StreamsConfig.PROCESSING_GUARANTEE_CONFIG
+Broker:
+
+default.replication.factor
+num.replica.fetchers
+auto.create.topics.enable
+min.insync.replicas
+unclean.leader.election.enable
+broker.rack
+log.flush.interval.messages
+log.flush.interval.ms
+unclean.leader.election.enable
+min.insync.replicas
+num.recovery.threads.per.data.dir
+
+
+
+## test tools
+./kafka-producer-perf-test.sh --num-records 1000000 --record-size 1000 --topic
+becket_test_3_replicas_1_partition --throughput 1000000 --producer-props bootstrap.
+servers=localhost:9092 max.in.flight.requests.per.connection=1 batch.size=100000
+compression.type=lz4
+
+
+
+
+
